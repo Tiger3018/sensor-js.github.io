@@ -29,6 +29,8 @@
 
 <div class="p-3 mb-2 bg-secondary" id="demo-div">
 <a id="start_demo" class="btn btn-lg btn-success py-1" href="#" role="button">Start the demo</a>
+<a id="clear" class="btn btn-lg btn-success py-1" href="#" role="button">Clean</a>
+<a id="download" class="btn btn-lg btn-success py-1" href="#" role="button">Download the db</a>
 <p style="margin-top:1rem;">Num. of datapoints: <span class="badge badge-warning" id="num-observed-events">0</span></p>
 
 
@@ -72,17 +74,31 @@
 </footer>
 <script>
 
+let db = null;
+
 function handleOrientation(event) {
   updateFieldIfNotNull('Orientation_a', event.alpha);
   updateFieldIfNotNull('Orientation_b', event.beta);
   updateFieldIfNotNull('Orientation_g', event.gamma);
+  //const insertTransaction = db.transaction("sensor", "readwrite");
+  //const objectStore = insertTransaction.objectStore("sensor");
+  //objectStore.add({data: event, time: Date()}, incrementEventCount());
   incrementEventCount();
+}
+
+function initEventCount(){
+  let counterElement = document.getElementById("num-observed-events")
+  let eventCount = parseInt(counterElement.innerHTML)
+  let storageValue = localStorage.getItem("observed-events");
+  counterElement.innerHTML = storageValue ? storageValue: 0;
 }
 
 function incrementEventCount(){
   let counterElement = document.getElementById("num-observed-events")
   let eventCount = parseInt(counterElement.innerHTML)
   counterElement.innerHTML = eventCount + 1;
+  localStorage.setItem("observed-events", eventCount + 1);
+  return eventCount + 1;
 }
 
 function updateFieldIfNotNull(fieldName, value, precision=10){
@@ -104,11 +120,54 @@ function handleMotion(event) {
   updateFieldIfNotNull('Gyroscope_z', event.rotationRate.alpha);
   updateFieldIfNotNull('Gyroscope_x', event.rotationRate.beta);
   updateFieldIfNotNull('Gyroscope_y', event.rotationRate.gamma);
-  incrementEventCount();
+
+  const insertTransaction = db.transaction("sensor", "readwrite");
+  const objectStore = insertTransaction.objectStore("sensor");
+  objectStore.add({data: event, time: Date()}, incrementEventCount());
+}
+
+function createDataBase() {
+    const request = window.indexedDB.open('MyTestDB');
+
+    request.onerror = function (event) {
+        console.log("Problem opening DB.");
+    }
+
+    request.onupgradeneeded = function (event) {
+        db = event.target.result;
+
+        let objectStore = db.createObjectStore('sensor');
+
+        objectStore.transaction.oncomplete = function (event) {
+            console.log("ObjectStore Created.");
+        }
+    }
+
+    request.onsuccess = function (event) {
+        db = event.target.result;
+        console.log("DB OPENED.");
+//      insert_records(roster);
+
+    }
 }
 
 let is_running = false;
 let demo_button = document.getElementById("start_demo");
+let download_button = document.getElementById("download");
+let clear_button = document.getElementById("clear");
+
+initEventCount();
+createDataBase();
+download_button.onclick = function(e) {
+
+}
+clear_button.onclick = function(e) {
+  localStorage.setItem("observed-events", 0);
+  const insertTransaction = db.transaction("sensor", "readwrite");
+  const objectStore = insertTransaction.objectStore("sensor");
+  objectStore.clear();
+  initEventCount();
+}
 demo_button.onclick = function(e) {
   e.preventDefault();
   
